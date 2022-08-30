@@ -10,6 +10,7 @@ import backoff
 import zipfile
 import requests
 from datetime import datetime, timedelta
+from dateutil.parser import parse
 
 import singer
 from singer import utils, metadata
@@ -36,6 +37,19 @@ END_POINTS = {
     "export_responses": "/API/v3/surveys/{survey_id}/export-responses/"
 }
 
+
+def is_date(string, fuzzy=False):
+    """
+    Return whether the string can be interpreted as a date.
+    :param string: str, string to check for date
+    :param fuzzy: bool, ignore unknown tokens in string if True
+    """
+    try:
+        parse(string, fuzzy=fuzzy)
+        return True
+
+    except ValueError:
+        return False
 
 def get_abs_path(path):
     return os.path.join(os.path.dirname(os.path.realpath(__file__)), path)
@@ -391,7 +405,7 @@ def sync_survey_responses(config, state, stream):
 
                     singer.write_records(stream.tap_stream_id, [transformed_data])
                     counter.increment()
-                    if bookmark_column:
+                    if bookmark_column and is_date(converted_data[bookmark_column]):
                         local_bookmark = max([local_bookmark, date_format(converted_data[bookmark_column])])
                 if end_date.split("T")[0] == datetime.today().strftime('%Y-%m-%d'):
                     break
