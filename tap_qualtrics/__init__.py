@@ -16,11 +16,16 @@ from singer import utils, metadata
 from singer.catalog import Catalog, CatalogEntry
 from singer.schema import Schema
 from singer.transform import transform
+
 from tap_qualtrics.exceptions import Qualtrics429Error, Qualtrics500Error, Qualtrics503Error, Qualtrics504Error, \
     Qualtrics400Error, Qualtrics401Error, Qualtrics403Error
 
 HOST_URL = "https://{data_center}.qualtrics.com"
-REQUIRED_CONFIG_KEYS = ["start_date", "data_center", "client_id", "client_secret", "refresh_token"]
+REQUIRED_CONFIG_KEYS = ["start_date", "data_center"]
+# One of this config is mandatory
+REQUIRED_CONFIG_REFRESH_TOKEN_KEYS = ["client_id", "client_secret", "refresh_token"]
+REQUIRED_CONFIG_X_API_TOKEN_KEY = ["x-api-token"]
+
 LOGGER = singer.get_logger()
 END_POINTS = {
     "refresh": "/oauth2/token",
@@ -156,13 +161,21 @@ def refresh_access_token_if_expired(config):
 
 
 def header_setup(headers, config, path=None):
-    if refresh_access_token_if_expired(config) or "Authorization" not in headers:
-        headers["Authorization"] = f'bearer {config["access_token"]}'
-    if path:
-        url = HOST_URL.format(data_center=config["data_center"]) + path
-        return headers, url
-    return headers
-
+    if "x-api-token" in config:
+        headers["x-api-token"] = config["x-api-token"]
+        if path:
+            url = HOST_URL.format(data_center=config["data_center"]) + path
+            return headers, url
+        return headers
+    elif "access_token" in config:
+        if refresh_access_token_if_expired(config) or "Authorization" not in headers:
+            headers["Authorization"] = f'bearer {config["access_token"]}'
+        if path:
+            url = HOST_URL.format(data_center=config["data_center"]) + path
+            return headers, url
+        return headers
+    else:
+        raise ValueError("Expected token or access_token in config")
 
 def extract_survey_page(url, config, headers):
     headers = header_setup(headers, config)
@@ -488,6 +501,9 @@ def sync(config, state, catalog):
 def main():
     # Parse command line arguments
     args = utils.parse_args(REQUIRED_CONFIG_KEYS)
+
+    if [key for key in REQUIRED_CONFIG_REFRESH_TOKEN_KEYS if key not in args.config] and [key for key in REQUIRED_CONFIG_X_API_TOKEN_KEY if key not in args.config]:
+        raise Exception("Config is missing required keys: {} or {}".format(REQUIRED_CONFIG_REFRESH_TOKEN_KEYS, REQUIRED_CONFIG_X_API_TOKEN_KEY))
 
     # If discover flag was passed, run discovery mode and dump output to stdout
     if args.discover:

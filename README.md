@@ -31,6 +31,16 @@ This tap:
         "refresh_token": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
     }
     ```
+   
+   Or like this 
+   
+   ```json
+   {
+     "start_date": "2021-10-28",
+     "data_center": "xxxx",
+     "x-api-token": "xxxxxxxxxxx"
+   }
+   ```
 
    - The `starts_dte` specifies the date at which the tap will begin pulling data.
 
@@ -41,6 +51,7 @@ This tap:
    - The `refresh_token`: The qualtrics OAuth Refresh Token
    - The `client_id`: The qualtrics OAuth client id
    - The `client_secret`: The qualtrics OAuth client secret
+   - The `x-api-token`: The API Token
    
 
 4. Run the Tap in Discovery Mode
